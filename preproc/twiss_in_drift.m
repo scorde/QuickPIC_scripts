@@ -3,13 +3,13 @@
 % Input parameters
 
 
-s_waist = 0.;  % in m
+s_waist = 0.35;  % in m
 
-sig_x = 30;  % in um
-sig_y = 30;  % in um
+sig_x = 10;  % in um
+sig_y = 10;  % in um
 
 eps_x = 50;  % in um
-eps_y = 50;  % in um
+eps_y = 5;  % in um
 
 gamma = 39139;
 

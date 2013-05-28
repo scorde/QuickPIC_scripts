@@ -18,11 +18,11 @@ working_dir = '~/Dropbox/SeB/Codes/sources/QuickPIC_scripts/';
 % update data dir to your quickpic output folder (folder which contains the rp input file)
 sim_number = 102;
 if sim_number == 0
-    datadir = '~/Dropbox/SeB/PostDoc/Projects/Electron-symmetrisation/QuickPIC_sim/qpic.e.0125_success/';
+    datadir = '~/QuickPIC_sim/qpic.e.0125_success/';
 else
-    datadir = ['~/Dropbox/SeB/PostDoc/Projects/Electron-symmetrisation/QuickPIC_sim/Sim_' num2str(sim_number) '/'];
+    datadir = ['~/QuickPIC_sim/Sim_' num2str(sim_number) '/'];
 end
-% datadir = '~/Dropbox/SeB/PostDoc/Projects/Electron-symmetrisation/QuickPIC_sim/f/';
+% datadir = '~/QuickPIC_sim/f/';
 
 % Define a memory size to use for storing trajectories, in GB
 RAM = 2;
