@@ -3,8 +3,8 @@ function SUB_BEAM = defining_subbeam( BEAM_SORTED )
 energy = 17.5;
 dE = 100.;
 
-slice = -65.;
-ds = 2;
+slice = 0.;
+ds = 10;
 
 % cond = abs(BEAM_SORTED(:,end,6))>20+dE/2.;
 % cond = abs(BEAM_SORTED(:,end,6))<20-dE/2.;

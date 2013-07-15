@@ -10,9 +10,11 @@
 %
 
 
+
 %% Defining input parameters
 
 addpath('~/Dropbox/SeB/Codes/sources/QUICKPICSIM/');
+addpath('~/Dropbox/SeB/Codes/sources/E200_scripts/tools/');
 addpath('~/Dropbox/SeB/Codes/sources/QuickPIC_scripts/postproc/');
 
 sim_number = 214;
@@ -21,18 +23,16 @@ datadir = ['~/QuickPIC_sim/qpic_' num2str(sim_number) '/'];
 % Define a memory size to use for storing trajectories, in GB
 RAM = 2;
 
-% Indicate if tags are available (yes if the binary qpic.e.0125 was used)
-tags_on = 0;
-
 % Parameters needed for betatron computation
 home = '/Users/scorde/';
 bet_executable = 'bet';
 n_process = 8;
+distance_plasma_lanex = 23.27; % in m
 
 % Time step range
 npt_start = -1;   % -1: start from start
 npt_end = -1;     % -1: go all the way to end
-npt_end = 5860;
+npt_end = 1500;
 
 
 
@@ -42,6 +42,7 @@ n0 = my_get_quickpic_param(myfile_rpinput, 'Plasma_Density');
 TEND = my_get_quickpic_param(myfile_rpinput, 'TEND');
 DT = my_get_quickpic_param(myfile_rpinput, 'DT');
 DFPHA_BEAM = my_get_quickpic_param(myfile_rpinput, 'DFPHA_BEAM');
+Num_Particle = my_get_quickpic_param(myfile_rpinput, 'Num_Particle');
 
 omega_p = 5.64e4*sqrt(n0);  % Plasma frequency in s-1
 
@@ -77,7 +78,7 @@ else
     fclose(fid);
 end
 
-Q = 3e3*npart_save/npart;
+Q = Num_Particle * SI_e * 1e12 *npart_save/npart;
 
 disp('Total number of macro-particles saved:');
 disp(npart_save);
@@ -88,90 +89,50 @@ disp(T);
 disp('Beam charge Q to input in the betatron code');
 disp(Q);
 
-
-
-%% Write the input file qp_bet_param.txt for the betatron code
-
-distance_plasma_lanex = 23.27; % in m
-
-param_header = sprintf('input_type = 1\nsync_limit = 1\nnpt_rec = 1\nnps = 0\nnps_spacing = 0\ntheta_X_max = 2.5\ntheta_Y_max = 2.5\nangular_resolution = 0.025\nsave_traj = 0\nsave_txt_d2W = 0\n');
-param_file = [param_header, sprintf('traj_file = %s%sqp_traj\n', home, datadir(3:end))];
-param_file = [param_file, sprintf('Q = %.4e\n', 3e3*npart_save/npart)];
-param_file = [param_file, sprintf('npart = %d\n', npart_save)];
-param_file = [param_file, sprintf('T = %.6e\n', T)];
-param_file = [param_file, sprintf('npt = %d\n', npt)];
-param_file = [param_file, sprintf('save_path = %s%s\n', home, datadir(3:end))];
-param_file = [param_file, sprintf('save_root = qp_bet\n')];
-
-f = fopen([datadir, 'qp_bet_param.txt'], 'w+');
-fwrite(f, param_file);
-fclose(f);
+save([datadir 'qp_traj_param.mat'], 'npart', 'npart_save', 'npt', 'T', 'Q');
 
 
 
 %% Compute betatron radiation
 
-system(['time /opt/local/lib/openmpi/bin/mpirun -np ', num2str(n_process), ' ~/Dropbox/SeB/Codes/bin/', bet_executable, ' ', datadir, 'qp_bet_param.txt']);
+load([datadir 'qp_traj_param.mat']);
 
-data = load([datadir, 'qp_bet_ang.txt']);
+param_header = sprintf(['input_type = 1\nsync_limit = 1\nnpt_rec = 1'...
+    '\nnps = 0\nnps_spacing = 0\ntheta_X_max = 2.5\ntheta_Y_max = 2.5'...
+    '\nangular_resolution = 0.025\nsave_traj = 0\nsave_txt_d2W = 0\n']);
+param_file = [param_header, sprintf('traj_file = %s%sqp_traj\n', home, datadir(3:end))];
+param_file = [param_file, sprintf('Q = %.4e\n', Q)];
+param_file = [param_file, sprintf('npart = %d\n', npart_save)];
+param_file = [param_file, sprintf('T = %.6e\n', T)];
+param_file = [param_file, sprintf('npt = %d\n', npt)];
+param_file = [param_file, sprintf('save_path = %s%sbetarad/\n', home, datadir(3:end))];
+param_file = [param_file, sprintf('save_root = qp_bet\n')];
+
+mkdir([datadir 'betarad']);
+f = fopen([datadir, 'betarad/qp_bet_param.txt'], 'w+');
+fwrite(f, param_file);
+fclose(f);
+
+system(['time /opt/local/lib/openmpi/bin/mpirun -np ', num2str(n_process), ' ~/Dropbox/SeB/Codes/bin/', bet_executable, ' ', datadir, 'betarad/qp_bet_param.txt']);
+
+data = load([datadir, 'betarad/qp_bet_ang.txt']);
 x = distance_plasma_lanex*unique(data(:,2));
 y = distance_plasma_lanex*unique(data(:,3));
 dW = reshape(data(:,4), length(x), length(y));
-fig = figure(2);
+fig = figure(3);
 set(fig, 'color', 'w');
 set(fig, 'position', [263, 164, 800, 700]);
 pcolor(x, y, dW);
-colormap(cmap), colorbar(), shading flat;
+cmap = custom_cmap();
+colormap(cmap.wbgyr), colorbar(), shading flat;
 daspect([1 1 1]);
 xlabel('x (mm)'), ylabel('y (mm)');
 
 
 
-%% Read sorted beam
+%% Read sorted beam and select a SUB_BEAM
 
-if sim_number==19.3 % for qpic.e.0125_success
-    npt = 149;
-    npart_save = 125657;
-end
-if sim_number==19.4 % for Sim_19.4
-    npt = 1486;
-    npart_save = 199649;
-end
-if sim_number==20 % for Sim_20
-    npt = 68;
-    npart_save = 262126;
-end
-if sim_number==21 % for Sim_21
-    npt = 149;
-    npart_save = 130510;
-end
-if sim_number==24 % for Sim_24
-    npt = 149;
-    npart_save = 126777;
-end
-if sim_number==25 % for Sim_25
-    npt = 186;
-    npart_save = 129174;
-end
-if sim_number==26 % for Sim_26
-    npt = 186;
-    npart_save = 127801;
-end
-if sim_number==27 % for Sim_27
-    npt = 186;
-    npart_save = 124192;
-end
-if sim_number==99 % for Sim_101
-    npt = 186;
-    npart_save = 131066;
-end
-if sim_number==102 % for Sim_104
-    npt = 425;
-    npart_save = 73822;
-end
-
-% npt = 66;
-% npart_save = 131066;
+load([datadir 'qp_traj_param.mat']);
 
 if npart_save*npt*6 > RAM*1e9/8
     npart_per_step = floor( RAM*1e9/8/(6*npt) );
@@ -199,19 +160,16 @@ end
 
 %% Get Betatron Profile from SUB_BEAM
 
-datadir2 = [datadir, 'betarad/tmp/'];
-SUB_BEAM = defining_subbeam(BEAM_SORTED);
-
-[x, y, dW] = get_betarad(SUB_BEAM, datadir2, home, bet_executable, n_process, npt, T, npart);
+[x, y, dW] = get_betarad(SUB_BEAM, [datadir, 'betarad/tmp/'], home, bet_executable,...
+    n_process, npt, T, npart);
 
 
 
 %% Get Beam and Wakefield pictures
 
-addpath('~/Dropbox/SeB/Codes/sources/E200_scripts/tools/');
 par = custom_cmap();
 
-par.do_save = 1;
+par.do_save = 0;
 do_log_QEB = 1;
 do_log_QEP = 0;
 par.x_range = [-150, 150];
@@ -300,8 +258,10 @@ for i=2:npt
 
 end
 
-system(['/usr/local/bin/ffmpeg -i ' path_QEB_QEP 'frame_%05d.png ' datadir 'movies/qpic_' num2str(sim_number) '_QEB_QEP.mpeg']);
-system(['/usr/local/bin/ffmpeg -i ' path_EZ_FPERP 'frame_%05d.png ' datadir 'movies/qpic_' num2str(sim_number) '_EZ_FPERP.mpeg']);
+if par.do_save
+    system(['/usr/local/bin/ffmpeg -i ' path_QEB_QEP 'frame_%05d.png ' datadir 'movies/qpic_' num2str(sim_number) '_QEB_QEP.mpeg']);
+    system(['/usr/local/bin/ffmpeg -i ' path_EZ_FPERP 'frame_%05d.png ' datadir 'movies/qpic_' num2str(sim_number) '_EZ_FPERP.mpeg']);
+end
 
 
 
@@ -311,73 +271,64 @@ XI = - (1:n_z) * Box_Z/n_z;
 S = (1:npt-1) * SI_c*DFPHA_BEAM*DT/omega_p;
 [SS, XIXI] = meshgrid(S,XI);
 
-figure(10)
-subplot(121)
-pcolor(SS, XIXI, waterfall_70cm)
-shading interp
-caxis([-40, 40]);
+fig = figure(4);
+set(fig, 'color', 'w');
+set(fig, 'position', [263, 164, 800, 700]);
+pcolor(SS, XIXI, waterfall);
+shading interp;
+caxis([-50, 50]);
 cb = colorbar();
-colormap(bwr);
-cblabel('Ez (GV/m)', 'fontsize', 16)
-xlabel('s (m)', 'fontsize', 16)
-ylabel('xi (um)', 'fontsize', 16)
-title('Beta function of 70 cm', 'fontsize', 16)
-axis ij
-set(gca, 'fontsize', 16)
+colormap(par.bwr);
+% cblabel('Ez (GV/m)', 'fontsize', 16);
+xlabel('s (m)', 'fontsize', 16);
+ylabel('xi (um)', 'fontsize', 16);
+title('Waterfall plot of on-axis E_z', 'fontsize', 16);
+axis ij;
+set(gca, 'fontsize', 16);
 hold on;
-[C,h] = contour(SS, XIXI, waterfall_70cm, 'k');
-subplot(122)
-xlabel('s (m)')
-ylabel('xi (um)')
-pcolor(SS, XIXI, waterfall_5mm)
-subplot(122)
-shading interp
-xlabel('s (m)', 'fontsize', 16)
-ylabel('xi (um)', 'fontsize', 16)
-title('Beta function of 4.7 mm', 'fontsize', 16)
-cb = colorbar();
-colormap(bwr);
-cblabel('Ez (GV/m)', 'fontsize', 16)
-caxis([-40, 40]);
-axis ij
-set(gca, 'fontsize', 16)
-hold on;
-[C,h] = contour(SS, XIXI, waterfall_5mm, 'k');
+contour(SS, XIXI, waterfall, 'k');
 
 
 
 %% Get longitudinal phase space pictures
+
 do_save = 1;
 
-xi_axis = linspace(-150, 150);
-E = linspace(0, 40);
+xi_axis = linspace(-80, 80);
+E = linspace(0, 30);
+
 fig = figure(5);
 set(fig, 'color', 'w');
-set(gca, 'fontsize', 20);
-if do_save
-    mkdir([datadir 'movies/longitudinal/']);
-    vidObj = VideoWriter([datadir 'movies/longitudinal/longitudinal.avi']);
-    vidObj.FrameRate = 10;
-    open(vidObj);
-end
+set(fig, 'position', [263, 164, 800, 700]);
+set(fig, 'PaperPosition', [0., 0., 8, 8]);
+set(gca, 'fontsize', 16);
+mkdir([datadir 'movies/longitudinal/']);
+
 for i=1:size(BEAM_SORTED, 2)
 	s = (i-1)*SI_c*DFPHA_BEAM*DT/omega_p;
 %     xi = SUB_BEAM(:,i,3) - 1e6*(i-1)*SI_c*DFPHA_BEAM*DT/omega_p;
 %     histmat = hist2(xi, SUB_BEAM(:,i,6), xi_axis, E);
     histmat = hist2(BEAM_SORTED(:,1,3), BEAM_SORTED(:,i,6), xi_axis, E);
     pcolor(xi_axis(2:end), E(2:end), log10(histmat(2:end, 2:end)));
-    colormap(cmap), shading flat;
-    xlabel('z (um)'), ylabel('E (GeV)'), title(['Longitudinal phase space at s = ' num2str(1e2*s, '%.2f') ' cm']);
+    cmap = custom_cmap();
+    colormap(cmap.wbgyr), shading flat;
+    xlabel('z (um)  '), ylabel('E (GeV)  '), title(['Longitudinal phase space at s = ' num2str(1e2*s, '%.2f') ' cm  ']);
     if do_save
-        writeVideo(vidObj,getframe(fig));
         filename = [datadir 'movies/longitudinal/frame_' num2str(i, '%.5d') '.png'];
         saveas(fig, filename, 'png');
     else
         pause(0.001);
     end
 end
+
 if do_save
-    close(vidObj);
+    system(['/usr/local/bin/ffmpeg -i ' datadir 'movies/longitudinal/frame_%05d.png ' datadir 'movies/qpic_' num2str(sim_number) '_longitudinal.mpeg']);
 end
+
+
+
+
+
+
 
 

@@ -1,43 +1,6 @@
 
 
 
-%% Display longitudinal evolution
-
-do_save = 1;
-
-xi_axis = linspace(-150, 150);
-E = linspace(0, 40);
-fig = figure(5);
-set(fig, 'color', 'w');
-set(gca, 'fontsize', 20);
-if do_save
-    mkdir([datadir 'movies/longitudinal/']);
-    vidObj = VideoWriter([datadir 'movies/longitudinal/longitudinal.avi']);
-    vidObj.FrameRate = 10;
-    open(vidObj);
-end
-for i=1:size(BEAM_SORTED, 2)
-	s = (i-1)*SI_c*DFPHA_BEAM*DT/omega_p;
-%     xi = SUB_BEAM(:,i,3) - 1e6*(i-1)*SI_c*DFPHA_BEAM*DT/omega_p;
-%     histmat = hist2(xi, SUB_BEAM(:,i,6), xi_axis, E);
-    histmat = hist2(BEAM_SORTED(:,1,3), BEAM_SORTED(:,i,6), xi_axis, E);
-    pcolor(xi_axis(2:end), E(2:end), log10(histmat(2:end, 2:end)));
-    colormap(cmap), shading flat;
-    xlabel('z (um)'), ylabel('E (GeV)'), title(['Longitudinal phase space at s = ' num2str(1e2*s, '%.2f') ' cm']);
-    if do_save
-        writeVideo(vidObj,getframe(fig));
-        filename = [datadir 'movies/longitudinal/frame_' num2str(i, '%.5d') '.png'];
-        saveas(fig, filename, 'png');
-    else
-        pause(0.001);
-    end
-end
-if do_save
-    close(vidObj);
-end
-
-
-
 %% Display transverse evolution
 
 do_save = 1;
