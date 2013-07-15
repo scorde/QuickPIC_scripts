@@ -12,24 +12,18 @@
 
 %% Defining input parameters
 
-% update working dir to your QUICKPICSIM folder
-working_dir = '~/Dropbox/SeB/Codes/sources/QuickPIC_scripts/';
+addpath('~/Dropbox/SeB/Codes/sources/QUICKPICSIM/');
+addpath('~/Dropbox/SeB/Codes/sources/QuickPIC_scripts/postproc/');
 
 % update data dir to your quickpic output folder (folder which contains the rp input file)
-sim_number = 102;
-if sim_number == 0
-    datadir = '~/QuickPIC_sim/qpic.e.0125_success/';
-else
-    datadir = ['~/QuickPIC_sim/Sim_' num2str(sim_number) '/'];
-end
-% datadir = '~/QuickPIC_sim/f/';
+sim_number = 214;
+datadir = ['~/QuickPIC_sim/qpic_' num2str(sim_number) '/'];
 
 % Define a memory size to use for storing trajectories, in GB
 RAM = 2;
 
-% Indicate if tags are available, and if phi/psi potentials are available
+% Indicate if tags are available
 tags_on = 0;
-potential_on = 0;
 
 % Parameters needed for betatron computation
 home = '/Users/scorde/';
@@ -40,12 +34,12 @@ n_process = 8;
 n_3D_timestep_start = -1;
 
 % -1: go all the way to end
-% n_3D_timestep_end = -1;
-n_3D_timestep_end = 4240;
+n_3D_timestep_end = -1;
+n_3D_timestep_end = 5860;
 
 
 
-addpath(working_dir);
+% addpath(working_dir);
 
 my_SI_params;
 custom_cmap;
@@ -58,18 +52,12 @@ DFPHA_BEAM = my_get_quickpic_param(myfile_rpinput, 'DFPHA_BEAM');
 
 omega_p = 5.64e4*sqrt(n0);  % Plasma frequency in s-1
 
-if(n_3D_timestep_start == -1)
-  n_3D_timestep_start = 0;
-end
-if(n_3D_timestep_end == -1)
-  n_3D_timestep_end = floor(TEND/DT);
-end
-
+if n_3D_timestep_start == -1; n_3D_timestep_start = 0; end;
+if n_3D_timestep_end == -1;  n_3D_timestep_end = floor(TEND/DT); end;
 
 npt = floor((n_3D_timestep_end-n_3D_timestep_start)/DFPHA_BEAM) + 1;
 T = DFPHA_BEAM*DT*(npt-1)/omega_p;
 npart = size(my_get_quickpic_phasespace(datadir, '01', sprintf('%.4d', n_3D_timestep_start+(npt-1)*DFPHA_BEAM)), 1);
-
 
 disp(['Time step range is from ' num2str(n_3D_timestep_start, '%.4d') ' to ' num2str(n_3D_timestep_start+(npt-1)*DFPHA_BEAM, '%.4d')]);
 
@@ -148,11 +136,11 @@ xlabel('x (mm)'), ylabel('y (mm)');
 
 %% Read sorted beam
 
-if sim_number==0 % for qpic.e.0125_success
+if sim_number==19.3 % for qpic.e.0125_success
     npt = 149;
     npart_save = 125657;
 end
-if sim_number==19 % for Sim_19
+if sim_number==19.4 % for Sim_19.4
     npt = 1486;
     npart_save = 199649;
 end
@@ -180,11 +168,11 @@ if sim_number==27 % for Sim_27
     npt = 186;
     npart_save = 124192;
 end
-if sim_number==99 % for Sim_99
+if sim_number==99 % for Sim_101
     npt = 186;
     npart_save = 131066;
 end
-if sim_number==102 % for Sim_102
+if sim_number==102 % for Sim_104
     npt = 425;
     npart_save = 73822;
 end
@@ -227,8 +215,25 @@ SUB_BEAM = defining_subbeam(BEAM_SORTED);
 
 %% Get Beam and Wakefield pictures
 
-do_save = 1;
-x_range = [-75, 75];
+addpath('~/Dropbox/SeB/Codes/sources/E200_scripts/tools/');
+par = custom_cmap();
+
+par.do_save = 1;
+do_log_QEB = 1;
+do_log_QEP = 0;
+par.x_range = [-150, 150];
+par.fontsize = 14;
+
+figure(1);
+set(1, 'position', [50, 164, 600, 822]);
+set(1, 'PaperPosition', [0., 0., 6, 8]);
+set(1, 'color', 'w');
+clf();
+figure(2);
+set(2, 'position', [650, 164, 600, 822]);
+set(2, 'PaperPosition', [0., 0., 6, 8]);
+set(2, 'color', 'w');
+
 
 % SI units
 scale_E = SI_em*SI_c*omega_p/SI_e;
@@ -240,112 +245,76 @@ n_z = 2^(my_get_quickpic_param(myfile_rpinput, 'INDZ'));
 % V/m to GV/m
 scale_E = scale_E / 1e9;
 
-
-if do_save
-    path_QEB_QEP = [datadir 'movies/QEB-QEP/'];
-    mkdir(path_QEB_QEP);
-    vidObj_QEB_QEP = VideoWriter([path_QEB_QEP 'QEB-QEP.avi']);
-    vidObj_QEB_QEP.FrameRate = 8;
-    open(vidObj_QEB_QEP);
-    path_EZ_FPERP = [datadir 'movies/EZ-FPERP/'];
-    mkdir(path_EZ_FPERP);
-    vidObj_EZ_FPERP = VideoWriter([path_EZ_FPERP 'EZ-FPERP.avi']);
-    vidObj_EZ_FPERP.FrameRate = 8;
-    open(vidObj_EZ_FPERP);
-    if potential_on
-        path_PHI_PSI = [datadir 'movies/PHI-PSI/'];
-        mkdir(path_PHI_PSI);
-        vidObj_PHI_PSI = VideoWriter([path_PHI_PSI 'PHI-PSI.avi']);
-        vidObj_PHI_PSI.FrameRate = 8;
-        open(vidObj_PHI_PSI);
-    end
-end
+[par.ZZ, par.XX] = meshgrid(- (1:n_z) * Box_Z/n_z, (1:n_x) * Box_X/n_x - Box_X/2);
 
 waterfall = zeros(n_z,npt-1);
+
+path_QEB_QEP = [datadir 'movies/QEB-QEP/'];
+mkdir(path_QEB_QEP);
+path_EZ_FPERP = [datadir 'movies/EZ-FPERP/'];
+mkdir(path_EZ_FPERP);
+
 
 for i=2:npt
     
     s = (i-1)*SI_c*DFPHA_BEAM*DT/omega_p;
+    s_str = ['s = ' num2str(1e2*s, '%.2f') ' cm  '];
     
     n_3D_timestep_str = sprintf('%.4d', n_3D_timestep_start+(i-1)*DFPHA_BEAM);
-    if mod(i,10)==0
-        disp(n_3D_timestep_str);
-    end
+    if mod(i,10)==0; disp(n_3D_timestep_str); end;
+    
     myfile = [datadir 'QEB-XZ/QEB-XZ_' n_3D_timestep_str '.h5'];
     QEB = -double(my_read_hdf(myfile))';
     myfile = [datadir 'QEP1-XZ/QEP1-XZ_' n_3D_timestep_str '.h5'];
     QEP = -double(my_read_hdf(myfile))';
-%     myfile = [datadir 'FEX-XZ/FEX-XZ_' n_3D_timestep_str '.h5'];
-%     FEX = scale_E * double(my_read_hdf(myfile))';
+    myfile = [datadir 'FEX-XZ/FEX-XZ_' n_3D_timestep_str '.h5'];
+    FEX = scale_E * double(my_read_hdf(myfile))';
 %     myfile = [datadir 'FEY-XZ/FEY-XZ_' n_3D_timestep_str '.h5'];
 %     FEY = scale_E * double(my_read_hdf(myfile))';
     myfile = [datadir 'FEZ-XZ/FEZ-XZ_' n_3D_timestep_str '.h5'];
     FEZ = scale_E * double(my_read_hdf(myfile))';
 %     myfile = [datadir 'FBX-XZ/FBX-XZ_' n_3D_timestep_str '.h5'];
 %     FBX = scale_B * double(my_read_hdf(myfile))';
-%     myfile = [datadir 'FBY-XZ/FBY-XZ_' n_3D_timestep_str '.h5'];
-%     FBY = scale_B * double(my_read_hdf(myfile))';
+    myfile = [datadir 'FBY-XZ/FBY-XZ_' n_3D_timestep_str '.h5'];
+    FBY = scale_B * double(my_read_hdf(myfile))';
 %     myfile = [datadir 'FBZ-XZ/FBZ-XZ_' n_3D_timestep_str '.h5'];
 %     FBZ = scale_B * double(my_read_hdf(myfile))';
-%     if potential_on
-%         myfile = [datadir 'PHI-XZ/PHI-XZ_' n_3D_timestep_str '.h5'];
-%         PHI = double(my_read_hdf(myfile))';
-%         myfile = [datadir 'PSI-XZ/PSI-XZ_' n_3D_timestep_str '.h5'];
-%         PSI = double(my_read_hdf(myfile))';
-%     end
-%     
+
     waterfall(:,i-1) = FEZ(n_x/2,:);
 
     F_perp = -(FEX-1e-9*SI_c*FBY);
-
-    Z = - (1:n_z) * Box_Z/n_z;
-    X = (1:n_x) * Box_X/n_x - Box_X/2;
-    [ZZ, XX] = meshgrid(Z,X);
     
-    fig = figure(1);
-    set(fig, 'position', [50, 164, 600, 822]);
-    set(fig, 'color', 'w');
-    
-    
-%     if i==2
-        subplot(211);
-        colormap(wbgyr);
-    %     pcolor(ZZ,XX,QEB), shading flat, cb = colorbar();
-    %     c_min = min(min((QEB(abs(XX)<x_range(2)))));
-    %     c_max = max(max((QEB(abs(XX)<x_range(2)))));
-    %     ylim(x_range), caxis([log(c_min), log(c_max)]);
-    %     xlabel('z (um)'), ylabel('x (um)'), title(['Beam density (units of n0) at s = ' num2str(1e2*s, '%.2f') ' cm']);
-        pcolor(ZZ,XX,log(QEB)), shading flat, cb = colorbar();
-%         ax_qeb = get(gca, 'Children');
-        ylim(x_range);
-        xlabel('z (um)'), ylabel('x (um)'), title(['Beam density (log scale) at s = ' num2str(1e2*s, '%.2f') ' cm']);
-        
-        subplot(212);
-        colormap(wbgyr);
-        pcolor(ZZ,XX,QEP), shading flat, cb = colorbar();
-%         ax_qep = get(gca, 'Children');
-        c_min = min(min((QEP(abs(XX)<x_range(2)))));
-        c_max = max(max((QEP(abs(XX)<x_range(2)))));
-        caxis([c_min, c_max]);
-        ylim(x_range), 
-        xlabel('z (um)'), ylabel('x (um)'), title(['Plasma density (units of n0) at s = ' num2str(1e2*s, '%.2f') ' cm']);
-%     else
-%         set(ax_qeb, 'CData', log(QEB)); 
-% %         title(['Beam density (log scale) at s = ' num2str(1e2*s, '%.2f') ' cm']);;
-%         set(ax_qep, 'CData', QEP); 
-% %         title(['Plasma density (units of n0) at s = ' num2str(1e2*s, '%.2f') ' cm']);
-%         c_min = min(min((QEP(abs(XX)<x_range(2)))));
-%         c_max = max(max((QEP(abs(XX)<x_range(2)))));
-%         caxis([c_min, c_max]);
-%     end
-    
-    if do_save
-        writeVideo(vidObj_QEB_QEP, getframe(fig));
-        filename = [path_QEB_QEP 'frame_' num2str(i, '%.5d') '.png'];
-        saveas(fig, filename, 'png');
+    % Plot QEB and QEP
+    par.path = path_QEB_QEP;
+    par.title = {{['  Ez (units of n0) at ' s_str], ['  Beam density (log scale) at ' s_str]},...
+        {['  Plasma density (units of n0) at ' s_str], ['  Plasma density (log scale) at ' s_str]}};
+    par.fig = 1;
+    if i==2
+        ax_struct_QEB_QEP = dual_plot_ini(par, QEB, QEP, do_log_QEB, do_log_QEP, i, 'wbgyr');
     else
-        pause(0.001);
+        dual_plot_set(ax_struct_QEB_QEP, par, QEB, QEP, do_log_QEB, do_log_QEP, i, 'wbgyr');
     end
+    
+    % Plot F_long and F_perp
+    par.path = path_EZ_FPERP;
+    par.title = {{['  F_{long} (GeV/m) at ' s_str], ['  ' s_str]},...
+        {['  F_{perp} (GeV/m) at ' s_str], ['  ' s_str]}};
+    par.fig = 2;
+    if i==2
+        ax_struct_EZ_FPERP = dual_plot_ini(par, -FEZ, F_perp, 0, 0, i, 'bwr');
+    else
+        dual_plot_set(ax_struct_EZ_FPERP, par, -FEZ, F_perp, 0, 0, i, 'bwr');
+    end
+
+end
+
+system(['/usr/local/bin/ffmpeg -i ' path_QEB_QEP 'frame_%05d.png ' datadir 'movies/qpic_' num2str(sim_number) '_QEB_QEP.mpeg']);
+system(['/usr/local/bin/ffmpeg -i ' path_EZ_FPERP 'frame_%05d.png ' datadir 'movies/qpic_' num2str(sim_number) '_EZ_FPERP.mpeg']);
+
+
+
+%%
+
 %     
 %     fig = figure(2);
 %     colormap(bwr);
@@ -373,42 +342,6 @@ for i=2:npt
 %     else
 %         pause(0.001);
 %     end
-
-%     if potential_on
-%         fig = figure(3);
-%         colormap(bwr);
-%         set(fig, 'position', [1250, 164, 600, 822]);
-%         set(fig, 'color', 'w');
-%         subplot(211);
-%         pcolor(ZZ,XX,PHI), shading flat, colorbar();
-%         c_max = max(max(abs((PHI(abs(XX)<x_range(2))))));
-%         ylim(x_range), caxis([-c_max, c_max]);
-%         xlabel('z (um)'), ylabel('x (um)'), title(['Phi (normalized) at s = ' num2str(1e2*s, '%.2f') ' cm']);
-%         subplot(212);
-%         pcolor(ZZ,XX,PSI), shading flat, colorbar();
-%         c_max = max(max(abs((PSI(abs(XX)<x_range(2))))));
-%         ylim(x_range), caxis([-c_max, c_max]);
-%         xlabel('z (um)'), ylabel('x (um)'), title(['Psi (normalized) at s = ' num2str(1e2*s, '%.2f') ' cm']);
-%         if do_save
-%             writeVideo(vidObj_PHI_PSI, getframe(fig));
-%             filename = [path_PHI_PSI 'frame_' num2str(i, '%.5d') '.png'];
-%             saveas(fig, filename, 'png');
-%         else
-%             pause(0.001);
-%         end
-%     end
-    
-end
-
-if do_save
-    close(vidObj_QEB_QEP);
-    if potential_on
-        close(vidObj_PHI_PSI);
-    end
-    close(vidObj_EZ_FPERP);
-end
-
-
 
 
 %% Waterfall plot of Ez over s
