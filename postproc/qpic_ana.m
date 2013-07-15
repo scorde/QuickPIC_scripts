@@ -1,12 +1,12 @@
 %
-% Matlab script to get electron trajectories 
-% from QuickPIC output data and to compute betatron radiation
+% Matlab script to analyze QuickPIC output files
+% including getting electron trajectories and computing betatron radiation
 % 
 % S. Corde, Jan 26, 2013
 %
-% Last update: S. Corde, Feb 16, 2013
+% Last update: S. Corde, July 14, 2013
 %
-% Only for QuickPIC binary qpic.e.0125
+% Extraction of electron trajectories and betatron calculation only for QuickPIC binary qpic.e.0125
 %
 
 
@@ -15,14 +15,13 @@
 addpath('~/Dropbox/SeB/Codes/sources/QUICKPICSIM/');
 addpath('~/Dropbox/SeB/Codes/sources/QuickPIC_scripts/postproc/');
 
-% update data dir to your quickpic output folder (folder which contains the rp input file)
 sim_number = 214;
 datadir = ['~/QuickPIC_sim/qpic_' num2str(sim_number) '/'];
 
 % Define a memory size to use for storing trajectories, in GB
 RAM = 2;
 
-% Indicate if tags are available
+% Indicate if tags are available (yes if the binary qpic.e.0125 was used)
 tags_on = 0;
 
 % Parameters needed for betatron computation
@@ -30,20 +29,14 @@ home = '/Users/scorde/';
 bet_executable = 'bet';
 n_process = 8;
 
-% start plot 3D timestep, -1: start from start
-n_3D_timestep_start = -1;
-
-% -1: go all the way to end
-n_3D_timestep_end = -1;
-n_3D_timestep_end = 5860;
+% Time step range
+npt_start = -1;   % -1: start from start
+npt_end = -1;     % -1: go all the way to end
+npt_end = 5860;
 
 
-
-% addpath(working_dir);
 
 my_SI_params;
-custom_cmap;
-
 myfile_rpinput = [datadir 'rpinput'];
 n0 = my_get_quickpic_param(myfile_rpinput, 'Plasma_Density');
 TEND = my_get_quickpic_param(myfile_rpinput, 'TEND');
@@ -52,14 +45,14 @@ DFPHA_BEAM = my_get_quickpic_param(myfile_rpinput, 'DFPHA_BEAM');
 
 omega_p = 5.64e4*sqrt(n0);  % Plasma frequency in s-1
 
-if n_3D_timestep_start == -1; n_3D_timestep_start = 0; end;
-if n_3D_timestep_end == -1;  n_3D_timestep_end = floor(TEND/DT); end;
+if npt_start == -1; npt_start = 0; end;
+if npt_end == -1;  npt_end = floor(TEND/DT); end;
 
-npt = floor((n_3D_timestep_end-n_3D_timestep_start)/DFPHA_BEAM) + 1;
+npt = floor((npt_end-npt_start)/DFPHA_BEAM) + 1;
 T = DFPHA_BEAM*DT*(npt-1)/omega_p;
-npart = size(my_get_quickpic_phasespace(datadir, '01', sprintf('%.4d', n_3D_timestep_start+(npt-1)*DFPHA_BEAM)), 1);
+npart = size(my_get_quickpic_phasespace(datadir, '01', sprintf('%.4d', npt_start+(npt-1)*DFPHA_BEAM)), 1);
 
-disp(['Time step range is from ' num2str(n_3D_timestep_start, '%.4d') ' to ' num2str(n_3D_timestep_start+(npt-1)*DFPHA_BEAM, '%.4d')]);
+disp(['Time step range is from ' num2str(npt_start, '%.4d') ' to ' num2str(npt_start+(npt-1)*DFPHA_BEAM, '%.4d')]);
 
 
 
@@ -74,13 +67,13 @@ if npart*npt*6> RAM*1e9/8
     for i=1:n_saving_step
         istart = 1 + (i-1)*npart_per_step;
         istop = i*npart_per_step;
-        npart_save = npart_save + save_qp_traj(istart, istop, n_3D_timestep_start, npt, datadir, fid);
+        npart_save = npart_save + save_qp_traj(istart, istop, npt_start, npt, datadir, fid);
     end
-    npart_save = npart_save + save_qp_traj(npart-reste+1, npart, n_3D_timestep_start, npt, datadir, fid);
+    npart_save = npart_save + save_qp_traj(npart-reste+1, npart, npt_start, npt, datadir, fid);
     fclose(fid);
 else
     fid = fopen([datadir 'qp_traj'], 'wb');
-    npart_save = save_qp_traj(1, npart, n_3D_timestep_start, npt, datadir, fid);
+    npart_save = save_qp_traj(1, npart, npt_start, npt, datadir, fid);
     fclose(fid);
 end
 
@@ -234,7 +227,6 @@ set(2, 'position', [650, 164, 600, 822]);
 set(2, 'PaperPosition', [0., 0., 6, 8]);
 set(2, 'color', 'w');
 
-
 % SI units
 scale_E = SI_em*SI_c*omega_p/SI_e;
 scale_B = SI_em*SI_c*omega_p/SI_e/SI_c;
@@ -260,22 +252,22 @@ for i=2:npt
     s = (i-1)*SI_c*DFPHA_BEAM*DT/omega_p;
     s_str = ['s = ' num2str(1e2*s, '%.2f') ' cm  '];
     
-    n_3D_timestep_str = sprintf('%.4d', n_3D_timestep_start+(i-1)*DFPHA_BEAM);
-    if mod(i,10)==0; disp(n_3D_timestep_str); end;
+    npt_str = sprintf('%.4d', npt_start+(i-1)*DFPHA_BEAM);
+    if mod(i,10)==0; disp(npt_str); end;
     
-    myfile = [datadir 'QEB-XZ/QEB-XZ_' n_3D_timestep_str '.h5'];
+    myfile = [datadir 'QEB-XZ/QEB-XZ_' npt_str '.h5'];
     QEB = -double(my_read_hdf(myfile))';
-    myfile = [datadir 'QEP1-XZ/QEP1-XZ_' n_3D_timestep_str '.h5'];
+    myfile = [datadir 'QEP1-XZ/QEP1-XZ_' npt_str '.h5'];
     QEP = -double(my_read_hdf(myfile))';
-    myfile = [datadir 'FEX-XZ/FEX-XZ_' n_3D_timestep_str '.h5'];
+    myfile = [datadir 'FEX-XZ/FEX-XZ_' npt_str '.h5'];
     FEX = scale_E * double(my_read_hdf(myfile))';
 %     myfile = [datadir 'FEY-XZ/FEY-XZ_' n_3D_timestep_str '.h5'];
 %     FEY = scale_E * double(my_read_hdf(myfile))';
-    myfile = [datadir 'FEZ-XZ/FEZ-XZ_' n_3D_timestep_str '.h5'];
+    myfile = [datadir 'FEZ-XZ/FEZ-XZ_' npt_str '.h5'];
     FEZ = scale_E * double(my_read_hdf(myfile))';
 %     myfile = [datadir 'FBX-XZ/FBX-XZ_' n_3D_timestep_str '.h5'];
 %     FBX = scale_B * double(my_read_hdf(myfile))';
-    myfile = [datadir 'FBY-XZ/FBY-XZ_' n_3D_timestep_str '.h5'];
+    myfile = [datadir 'FBY-XZ/FBY-XZ_' npt_str '.h5'];
     FBY = scale_B * double(my_read_hdf(myfile))';
 %     myfile = [datadir 'FBZ-XZ/FBZ-XZ_' n_3D_timestep_str '.h5'];
 %     FBZ = scale_B * double(my_read_hdf(myfile))';
@@ -311,37 +303,6 @@ end
 system(['/usr/local/bin/ffmpeg -i ' path_QEB_QEP 'frame_%05d.png ' datadir 'movies/qpic_' num2str(sim_number) '_QEB_QEP.mpeg']);
 system(['/usr/local/bin/ffmpeg -i ' path_EZ_FPERP 'frame_%05d.png ' datadir 'movies/qpic_' num2str(sim_number) '_EZ_FPERP.mpeg']);
 
-
-
-%%
-
-%     
-%     fig = figure(2);
-%     colormap(bwr);
-%     set(fig, 'position', [650, 164, 600, 822]);
-%     set(fig, 'color', 'w');
-% 
-%     subplot(211);
-%     colormap(bwr);
-%     pcolor(ZZ,XX,-FEZ), shading flat, cb = colorbar();
-%     c_max = max(max(abs((FEZ(abs(XX)<x_range(2))))));
-%     ylim(x_range), caxis([-c_max, c_max]);
-%     xlabel('z (um)'), ylabel('x (um)'), title(['F_{long} (GeV/m) at s = ' num2str(1e2*s, '%.2f') ' cm']);
-%     
-%     subplot(212);
-%     colormap(bwr);
-%     pcolor(ZZ,XX,F_perp), shading flat, cb = colorbar();
-%     c_max = max(max(abs((F_perp(abs(XX)<x_range(2))))));
-%     ylim(x_range), caxis([-c_max, c_max]);
-%     xlabel('z (um)'), ylabel('x (um)'), title(['F_{perp} (GeV/m) at s = ' num2str(1e2*s, '%.2f') ' cm']);
-%    
-%     if do_save
-%         writeVideo(vidObj_EZ_FPERP, getframe(fig));
-%         filename = [path_EZ_FPERP 'frame_' num2str(i, '%.5d') '.png'];
-%         saveas(fig, filename, 'png');
-%     else
-%         pause(0.001);
-%     end
 
 
 %% Waterfall plot of Ez over s
@@ -382,5 +343,41 @@ axis ij
 set(gca, 'fontsize', 16)
 hold on;
 [C,h] = contour(SS, XIXI, waterfall_5mm, 'k');
+
+
+
+%% Get longitudinal phase space pictures
+do_save = 1;
+
+xi_axis = linspace(-150, 150);
+E = linspace(0, 40);
+fig = figure(5);
+set(fig, 'color', 'w');
+set(gca, 'fontsize', 20);
+if do_save
+    mkdir([datadir 'movies/longitudinal/']);
+    vidObj = VideoWriter([datadir 'movies/longitudinal/longitudinal.avi']);
+    vidObj.FrameRate = 10;
+    open(vidObj);
+end
+for i=1:size(BEAM_SORTED, 2)
+	s = (i-1)*SI_c*DFPHA_BEAM*DT/omega_p;
+%     xi = SUB_BEAM(:,i,3) - 1e6*(i-1)*SI_c*DFPHA_BEAM*DT/omega_p;
+%     histmat = hist2(xi, SUB_BEAM(:,i,6), xi_axis, E);
+    histmat = hist2(BEAM_SORTED(:,1,3), BEAM_SORTED(:,i,6), xi_axis, E);
+    pcolor(xi_axis(2:end), E(2:end), log10(histmat(2:end, 2:end)));
+    colormap(cmap), shading flat;
+    xlabel('z (um)'), ylabel('E (GeV)'), title(['Longitudinal phase space at s = ' num2str(1e2*s, '%.2f') ' cm']);
+    if do_save
+        writeVideo(vidObj,getframe(fig));
+        filename = [datadir 'movies/longitudinal/frame_' num2str(i, '%.5d') '.png'];
+        saveas(fig, filename, 'png');
+    else
+        pause(0.001);
+    end
+end
+if do_save
+    close(vidObj);
+end
 
 
