@@ -140,24 +140,23 @@ colormap(cmap.wbgyr), colorbar(), shading flat;
 daspect([1 1 1]);
 xlabel('x (mm)'), ylabel('y (mm)');
 
-if do_spec
-    E = logspace(log10(energy_range(1)), log10(energy_range(2)), nps);
-    tmp = load(lanex_response_file);
-    lanex_response = interp1(tmp(:,1), tmp(:,4), 1e-6*E)';
-    fid = fopen([datadir 'betarad/qp_bet_d2W'], 'rb');
-    d2W = fread(fid, nps*(201)^2, 'double');
-    fclose(fid);
-    d2W = reshape(d2W, 201, 201, nps);
-    d2W = permute(d2W, [3 1 2]);
-    dS = squeeze(trapz(E,d2W.*repmat(lanex_response, [1 201 201]),1));
-    fig = figure(6);
-    set(fig, 'color', 'w');
-    set(fig, 'position', [263, 164, 800, 700]);
-    pcolor(x, y, dS);
-    colormap(cmap.wbgyr), colorbar(), shading flat;
-    daspect([1 1 1]);
-    xlabel('x (mm)'), ylabel('y (mm)');
-end
+E = logspace(log10(energy_range(1)), log10(energy_range(2)), nps);
+tmp = load(lanex_response_file);
+lanex_response = interp1(tmp(:,1), tmp(:,4), 1e-6*E)';
+fid = fopen([datadir 'betarad/qp_bet_d2W'], 'rb');
+d2W = fread(fid, nps*(201)^2, 'double');
+fclose(fid);
+d2W = reshape(d2W, 201, 201, nps);
+d2W = permute(d2W, [3 1 2]);
+dS = squeeze(trapz(E,d2W.*repmat(lanex_response', [1 201 201]),1));
+fig = figure(6);
+set(fig, 'color', 'w');
+set(fig, 'position', [263, 164, 800, 700]);
+pcolor(x, y, dS);
+colormap(cmap.wbgyr), colorbar(), shading flat;
+daspect([1 1 1]);
+xlabel('x (mm)'), ylabel('y (mm)');
+
 
 
 

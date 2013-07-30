@@ -21,7 +21,7 @@ if do_log_1
     if c_min==c_max; c_min = c_max - 1; c_max = c_max + 1; end;
     pcolor(input.ZZ,input.XX,log10(var_1)), shading flat, cb = colorbar(); set(cb, 'fontsize', input.fontsize);
     caxis([c_min c_max]);
-    xlabel(' z (um) '), ylabel(' x (um) '), output_ax.title_1 = title(input.title{1}{2});
+    xlabel(' z (um) '), ylabel([' ' lower(input.slice(1)) ' (um) ']), output_ax.title_1 = title(input.title{1}{2});
 else
     pcolor(input.ZZ,input.XX,var_1), shading flat, cb = colorbar(); set(cb, 'fontsize', input.fontsize);
     c_min = min(tmp_var_1(:));
@@ -29,7 +29,7 @@ else
     if c_min==c_max; c_min = c_max - 1; c_max = c_max + 1; end;
     if strcmp(cmap, 'bwr'); c_max = max([abs(c_min) abs(c_max)]); c_min = -c_max; end;
     caxis([c_min c_max]);
-    xlabel(' z (um) '), ylabel(' x (um) '), output_ax.title_1 = title(input.title{1}{1});
+    xlabel(' z (um) '), ylabel([' ' lower(input.slice(1)) ' (um) ']), output_ax.title_1 = title(input.title{1}{1});
 end
 ylim(input.x_range);
 output_ax.ax_12 = get(output_ax.ax_11, 'Children');
@@ -46,7 +46,7 @@ if do_log_2
     if c_min==c_max; c_min = c_max - 1; c_max = c_max + 1; end;
     pcolor(input.ZZ,input.XX,log10(var_2)), shading flat, cb = colorbar(); set(cb, 'fontsize', input.fontsize);
     caxis([c_min c_max]);
-    xlabel(' z (um) '), ylabel(' x (um) '), output_ax.title_2 = title(input.title{2}{2});
+    xlabel(' z (um) '), ylabel([' ' lower(input.slice(1)) ' (um) ']), output_ax.title_2 = title(input.title{2}{2});
 else
     pcolor(input.ZZ,input.XX,var_2), shading flat, cb = colorbar(); set(cb, 'fontsize', input.fontsize);
     c_min = min(tmp_var_2(:));
@@ -54,7 +54,7 @@ else
     if c_min==c_max; c_min = c_max - 1; c_max = c_max + 1; end;
     if strcmp(cmap, 'bwr'); c_max = max([abs(c_min) abs(c_max)]); c_min = -c_max; end;
     caxis([c_min c_max]);
-    xlabel(' z (um) '), ylabel(' x (um) '), output_ax.title_2 = title(input.title{2}{1});
+    xlabel(' z (um) '), ylabel([' ' lower(input.slice(1)) ' (um) ']), output_ax.title_2 = title(input.title{2}{1});
 end
 ylim(input.x_range);
 output_ax.ax_22 = get(gca, 'Children');
