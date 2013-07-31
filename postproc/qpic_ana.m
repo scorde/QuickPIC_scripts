@@ -17,7 +17,7 @@ addpath('~/Dropbox/SeB/Codes/sources/QUICKPICSIM/');
 addpath('~/Dropbox/SeB/Codes/sources/E200_scripts/tools/');
 addpath('~/Dropbox/SeB/Codes/sources/QuickPIC_scripts/postproc/');
 
-sim_number = 228;
+sim_number = 220;
 datadir = ['~/QuickPIC_sim/qpic_' num2str(sim_number) '/'];
 
 % Define a memory size to use for storing trajectories, in GB
@@ -31,7 +31,7 @@ do_spec = 1; % 1 to compute betatron spectrum, 0 otherwise
 energy_range = [1e4 1e10]; % energy range in eV for betatron spectrum calculation
 nps = 200; % number of frequency steps for betatron spectrum calculation
 lanex_response_file = [home 'Dropbox/SeB/PostDoc/Projects/BetaRad/scintillator_sim/lanex_sextufilter/lanex_regular_response_W1mm_2x2mm2.txt'];
-distance_plasma_lanex = 23.27; % in m
+distance_plasma_lanex = 22.2; % in m
 
 % Time step range
 npt_start = -1;   % -1: start from start
@@ -100,6 +100,8 @@ save([datadir 'qp_traj_param.mat'], 'npart', 'npart_save', 'npt_start', 'npt', '
 
 %% Compute betatron radiation
 
+fontsize = 18;
+
 load([datadir 'qp_traj_param.mat']);
 
 param_header = sprintf(['input_type = 1\nsync_limit = 1\nnpt_rec = 1'...
@@ -134,11 +136,15 @@ dW = reshape(data(:,4), length(y), length(x));
 fig = figure(3);
 set(fig, 'color', 'w');
 set(fig, 'position', [263, 164, 800, 700]);
+set(fig, 'PaperPosition', [0., 0., 8, 8]);
+set(gca, 'fontsize', fontsize);
 pcolor(x, y, dW);
 cmap = custom_cmap();
-colormap(cmap.wbgyr), colorbar(), shading flat;
+colormap(cmap.wbgyr), colorbar('fontsize', fontsize), shading flat;
 daspect([1 1 1]);
 xlabel('x (mm)'), ylabel('y (mm)');
+caxis([0 max(dW(:))]);
+saveas(fig, [datadir 'betarad/qp_bet_ang'], 'png');
 
 if do_spec
     E = logspace(log10(energy_range(1)), log10(energy_range(2)), nps);
@@ -150,13 +156,38 @@ if do_spec
     d2W = reshape(d2W, 201, 201, nps);
     d2W = permute(d2W, [3 1 2]);
     dS = squeeze(trapz(E,d2W.*repmat(lanex_response, [1 201 201]),1));
+    dS_sym = zeros(size(dS));
+    for i = 0:359; dS_sym = dS_sym + (1/360)*imrotate_sc(dS, i); end;
     fig = figure(6);
     set(fig, 'color', 'w');
     set(fig, 'position', [263, 164, 800, 700]);
+    set(fig, 'PaperPosition', [0., 0., 8, 8]);
+    set(gca, 'fontsize', fontsize);
     pcolor(x, y, dS);
-    colormap(cmap.wbgyr), colorbar(), shading flat;
+    colormap(cmap.wbgyr), colorbar('fontsize', fontsize), shading flat;
     daspect([1 1 1]);
     xlabel('x (mm)'), ylabel('y (mm)');
+    caxis([0 max(dS(:))]);
+    saveas(fig, [datadir 'betarad/qp_bet_dS'], 'png');
+    fig = figure(7);
+    set(fig, 'color', 'w');
+    set(fig, 'position', [263, 164, 800, 700]);
+    set(fig, 'PaperPosition', [0., 0., 8, 8]);
+    set(gca, 'fontsize', fontsize);
+    pcolor(x, y, dS_sym);
+    colormap(cmap.wbgyr), colorbar('fontsize', fontsize), shading flat;
+    daspect([1 1 1]);
+    xlabel('x (mm)'), ylabel('y (mm)');
+    caxis([0 max(dS_sym(:))]);
+    saveas(fig, [datadir 'betarad/qp_bet_dS_sym'], 'png');
+    qp_bet = struct();
+    qp_bet.gamma_max = max(dS_sym(:));
+    tmp = dS_sym>qp_bet.gamma_max/2.;
+    gamma_div = 2*sqrt( sum(tmp(:))*(x(2)-x(1))*(y(2)-y(1))/pi );
+    qp_bet.gamma_yield = qp_bet.gamma_max*gamma_div^2;
+    qp_bet.gamma_div = gamma_div/distance_plasma_lanex;
+    disp(qp_bet);
+    save([datadir 'betarad/qp_bet.mat'], 'qp_bet');
 end
 
 
