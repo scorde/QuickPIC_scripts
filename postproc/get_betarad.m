@@ -1,4 +1,4 @@
-function [x, y, dW] = get_betarad( SUB_BEAM, datadir, home, bet_executable, n_process, npt, T, npart )
+function [x, y, dW] = get_betarad( SUB_BEAM, datadir, home, bet_executable, n_process, npt, T, Q )
 
 distance_plasma_lanex = 23.27; % in m
 
@@ -12,7 +12,7 @@ npart_save = size(SUB_BEAM, 1);
 
 param_header = sprintf('input_type = 1\nsync_limit = 1\nnpt_rec = 1\nnps = 0\nnps_spacing = 0\ntheta_X_max = 2.5\ntheta_Y_max = 2.5\nangular_resolution = 0.025\nsave_traj = 0\nsave_txt_d2W = 0\n');
 param_file = [param_header, sprintf('traj_file = %s%stmp_traj\n', home, datadir(3:end))];
-param_file = [param_file, sprintf('Q = %.4e\n', 3e3*npart_save/npart)];
+param_file = [param_file, sprintf('Q = %.4e\n', Q)];
 param_file = [param_file, sprintf('npart = %d\n', npart_save)];
 param_file = [param_file, sprintf('T = %.6e\n', T)];
 param_file = [param_file, sprintf('npt = %d\n', npt)];

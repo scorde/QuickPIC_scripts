@@ -17,11 +17,11 @@ addpath('~/Dropbox/SeB/Codes/sources/QUICKPICSIM/');
 addpath('~/Dropbox/SeB/Codes/sources/E200_scripts/tools/');
 addpath('~/Dropbox/SeB/Codes/sources/QuickPIC_scripts/postproc/');
 
-sim_number = 220;
+sim_number = 226;
 datadir = ['~/QuickPIC_sim/qpic_' num2str(sim_number) '/'];
 
 % Define a memory size to use for storing trajectories, in GB
-RAM = 2.5;
+RAM = 2.3;
 
 % Parameters needed for betatron computation
 home = '/Users/scorde/';
@@ -35,9 +35,9 @@ distance_plasma_lanex = 22.2; % in m
 
 % Time step range
 npt_start = -1;   % -1: start from start
-% npt_start = 1000;
+npt_start = 250;
 npt_end = -1;     % -1: go all the way to end
-% npt_end = 6000;
+npt_end = 1600;
 
 
 
@@ -57,6 +57,7 @@ if npt_end == -1;  npt_end = floor(TEND/DT); end;
 npt = floor((npt_end-npt_start)/DFPHA_BEAM) + 1;
 T = DFPHA_BEAM*DT*(npt-1)/omega_p;
 npart = size(my_get_quickpic_phasespace(datadir, '01', sprintf('%.4d', npt_start+(npt-1)*DFPHA_BEAM)), 1);
+npart_tot = size(my_get_quickpic_phasespace(datadir, '01', sprintf('%.4d', 0)), 1);
 
 disp(['Time step range is from ' num2str(npt_start, '%.4d') ' to ' num2str(npt_start+(npt-1)*DFPHA_BEAM, '%.4d')]);
 
@@ -83,7 +84,7 @@ else
     fclose(fid);
 end
 
-Q = Num_Particle * SI_e * 1e12 *npart_save/npart;
+Q = Num_Particle * SI_e * 1e12 *npart_save/npart_tot;
 
 disp('Total number of macro-particles saved:');
 disp(npart_save);
@@ -94,13 +95,14 @@ disp(T);
 disp('Beam charge Q to input in the betatron code');
 disp(Q);
 
-save([datadir 'qp_traj_param.mat'], 'npart', 'npart_save', 'npt_start', 'npt', 'T', 'Q');
+save([datadir 'qp_traj_param.mat'], 'npart', 'npart_save', 'npart_tot', 'npt_start', 'npt', 'T', 'Q');
 
 
 
 %% Compute betatron radiation
 
 fontsize = 18;
+datadir_bet = [datadir 'betarad_' num2str(npt_start, '%.4d') '_' num2str(npt_end, '%.4d') '/'];
 
 load([datadir 'qp_traj_param.mat']);
 
@@ -119,17 +121,17 @@ if do_spec
 else
     param_file = [param_file, sprintf('nps = %d\n', 0)];
 end
-param_file = [param_file, sprintf('save_path = %s%sbetarad/\n', home, datadir(3:end))];
+param_file = [param_file, sprintf('save_path = %s%s\n', home, datadir_bet(3:end))];
 param_file = [param_file, sprintf('save_root = qp_bet\n')];
 
-mkdir([datadir 'betarad']);
-f = fopen([datadir, 'betarad/qp_bet_param.txt'], 'w+');
+mkdir(datadir_bet);
+f = fopen([datadir_bet, 'qp_bet_param.txt'], 'w+');
 fwrite(f, param_file);
 fclose(f);
 
-system(['time /opt/local/lib/openmpi/bin/mpirun -np ', num2str(n_process), ' ~/Dropbox/SeB/Codes/bin/', bet_executable, ' ', datadir, 'betarad/qp_bet_param.txt']);
+system(['time /opt/local/lib/openmpi/bin/mpirun -np ', num2str(n_process), ' ~/Dropbox/SeB/Codes/bin/', bet_executable, ' ', datadir_bet, 'qp_bet_param.txt']);
 
-data = load([datadir, 'betarad/qp_bet_ang.txt']);
+data = load([datadir_bet, 'qp_bet_ang.txt']);
 x = distance_plasma_lanex*unique(data(:,2));
 y = distance_plasma_lanex*unique(data(:,3));
 dW = reshape(data(:,4), length(y), length(x));
@@ -144,13 +146,13 @@ colormap(cmap.wbgyr), colorbar('fontsize', fontsize), shading flat;
 daspect([1 1 1]);
 xlabel('x (mm)'), ylabel('y (mm)');
 caxis([0 max(dW(:))]);
-saveas(fig, [datadir 'betarad/qp_bet_ang'], 'png');
+saveas(fig, [datadir_bet 'qp_bet_ang'], 'png');
 
 if do_spec
     E = logspace(log10(energy_range(1)), log10(energy_range(2)), nps);
     tmp = load(lanex_response_file);
     lanex_response = interp1(tmp(:,1), tmp(:,4), 1e-6*E)';
-    fid = fopen([datadir 'betarad/qp_bet_d2W'], 'rb');
+    fid = fopen([datadir_bet 'qp_bet_d2W'], 'rb');
     d2W = fread(fid, nps*(201)^2, 'double');
     fclose(fid);
     d2W = reshape(d2W, 201, 201, nps);
@@ -168,7 +170,7 @@ if do_spec
     daspect([1 1 1]);
     xlabel('x (mm)'), ylabel('y (mm)');
     caxis([0 max(dS(:))]);
-    saveas(fig, [datadir 'betarad/qp_bet_dS'], 'png');
+    saveas(fig, [datadir_bet 'qp_bet_dS'], 'png');
     fig = figure(7);
     set(fig, 'color', 'w');
     set(fig, 'position', [263, 164, 800, 700]);
@@ -179,15 +181,21 @@ if do_spec
     daspect([1 1 1]);
     xlabel('x (mm)'), ylabel('y (mm)');
     caxis([0 max(dS_sym(:))]);
-    saveas(fig, [datadir 'betarad/qp_bet_dS_sym'], 'png');
+    saveas(fig, [datadir_bet 'qp_bet_dS_sym'], 'png');
+    dS_filt = filter2(ones(5,5)/25, dS);
     qp_bet = struct();
-    qp_bet.gamma_max = max(dS_sym(:));
-    tmp = dS_sym>qp_bet.gamma_max/2.;
-    gamma_div = 2*sqrt( sum(tmp(:))*(x(2)-x(1))*(y(2)-y(1))/pi );
-    qp_bet.gamma_yield = qp_bet.gamma_max*gamma_div^2;
-    qp_bet.gamma_div = gamma_div/distance_plasma_lanex;
+    qp_bet.gamma_max_1 = max(dS_filt(:));
+    tmp_1 = dS_filt>qp_bet.gamma_max_1/2.;
+    gamma_div_1 = 2*sqrt( sum(tmp_1(:))*(x(2)-x(1))*(y(2)-y(1))/pi );
+    qp_bet.gamma_yield_1 = qp_bet.gamma_max_1*gamma_div_1^2;
+    qp_bet.gamma_div_1 = gamma_div_1/distance_plasma_lanex;
+    qp_bet.gamma_max_2 = max(dS_sym(:));
+    tmp_2 = dS_sym>qp_bet.gamma_max_2/2.;
+    gamma_div_2 = 2*sqrt( sum(tmp_2(:))*(x(2)-x(1))*(y(2)-y(1))/pi );
+    qp_bet.gamma_yield_2 = qp_bet.gamma_max_2*gamma_div_2^2;
+    qp_bet.gamma_div_2 = gamma_div_2/distance_plasma_lanex;
     disp(qp_bet);
-    save([datadir 'betarad/qp_bet.mat'], 'qp_bet');
+    save([datadir_bet 'qp_bet.mat'], 'qp_bet');
 end
 
 
@@ -234,7 +242,7 @@ SUB_BEAM = defining_subbeam(BEAM_SORTED, par);
 %% Get Betatron Profile from SUB_BEAM
 
 [x, y, dW] = get_betarad(SUB_BEAM, [datadir, 'betarad/tmp/'], home, bet_executable,...
-    n_process, npt, T, npart);
+    n_process, npt, T, Num_Particle * SI_e * 1e12 * size(SUB_BEAM,1)/npart_tot);
 
 
 
