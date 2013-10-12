@@ -9,10 +9,10 @@ save_name = '';
 energy = linspace(22.5, 22.5, 1);
 dE = 500;
 
-slice = linspace(-32, -32, 1);
+slice = linspace(5, 5, 1);
 ds = 2;
 
-x_range = [0.1 0.6];
+x_range = [0. 0.6];
 
 Z = (1:size(BEAM_SORTED,2))*SI_c*DFPHA_BEAM*DT/omega_p;
 
@@ -69,7 +69,7 @@ for i=energy
         set(gca, 'fontsize', 20);
         legend('x','y'), xlabel('z (m)'), ylabel('Alpha');
         xlim(x_range); ylim([-2.5, 2.5]);
-%         pause;
+        pause;
     end
 end
 
